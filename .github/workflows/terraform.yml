@@ -1,0 +1,64 @@
+name: terraform-gh-dev
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'envs/gh-dev/**'
+      - 'modules/**'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: envs/gh-dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check
+      - run: terraform init
+      - run: terraform validate
+      - run: terraform plan -out=tfplan
+      - name: Encrypt plan
+        env:
+          TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
+        run: echo "$TFPLAN_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 -o tfplan.gpg tfplan
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: envs/gh-dev/tfplan.gpg
+          retention-days: 1
+
+  apply:
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: gh-dev
+    defaults:
+      run:
+        working-directory: envs/gh-dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: envs/gh-dev
+      - name: Decrypt plan
+        env:
+          TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
+        run: echo "$TFPLAN_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 -o tfplan -d tfplan.gpg
+      - run: terraform apply tfplan
