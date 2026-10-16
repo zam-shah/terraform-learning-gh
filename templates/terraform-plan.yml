@@ -1,0 +1,69 @@
+parameters:
+  - name: workingDir
+    type: string
+  - name: backendKey
+    type: string
+  - name: serviceConnection
+    type: string
+  - name: artifactName
+    type: string  
+
+steps:
+  - task: TerraformInstaller@1
+    displayName: 'Install Terraform'
+    inputs:
+      terraformVersion: '1.15.8' 
+
+  - script: terraform fmt -check -recursive
+    displayName: 'Check Formatting'
+    workingDirectory: '$(Build.SourcesDirectory)'
+
+  - script: |
+      curl -L -o tflint.zip https://github.com/terraform-linters/tflint/releases/latest/download/tflint_linux_amd64.zip
+      unzip tflint.zip
+      ./tflint --init
+      ./tflint --recursive
+    displayName: 'Run tflint'
+    workingDirectory: '$(Build.SourcesDirectory)'
+
+  - script: |
+      pip install checkov
+      checkov -d . --framework terraform --compact --check HIGH,CRITICAL
+    displayName: 'Checkov — blocking (high/critical)'
+    workingDirectory: '$(Build.SourcesDirectory)'
+
+  - script: |
+      checkov -d . --framework terraform --compact --soft-fail
+    displayName: 'Checkov — advisory (all findings)'
+    workingDirectory: '$(Build.SourcesDirectory)'
+
+  - script: |
+      git config --global url."https://$(System.AccessToken)@dev.azure.com".insteadOf "https://zamhshah0763@dev.azure.com"
+    displayName: 'Configure Git auth for module fetch'
+
+  - task: TerraformTaskV4@4
+    displayName: 'Terraform Init'
+    inputs:
+      provider: 'azurerm'
+      command: 'init'
+      workingDirectory: '${{ parameters.workingDir }}'
+      backendServiceArm: '${{ parameters.serviceConnection }}'
+      backendAzureRmResourceGroupName: 'rg-tfstate'
+      backendAzureRmStorageAccountName: 'sttfstatezam0809'
+      backendAzureRmContainerName: 'tfstate'
+      backendAzureRmKey: '${{ parameters.backendKey }}'
+
+  - task: TerraformTaskV4@4
+    displayName: 'Terraform Plan'
+    inputs:
+      provider: 'azurerm'
+      command: 'plan'
+      workingDirectory: '${{ parameters.workingDir }}'
+      environmentServiceNameAzureRM: '${{ parameters.serviceConnection }}'
+      commandOptions: '-out=$(Build.ArtifactStagingDirectory)/tfplan -input=false'
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish Plan Artifact'
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)'
+      artifact: '${{ parameters.artifactName }}'        

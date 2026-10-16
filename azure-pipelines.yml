@@ -1,0 +1,85 @@
+trigger:
+  branches:
+    include:
+      - main
+
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  serviceConnection: 'azure-personal'
+
+stages:
+  - stage: PlanDev
+    displayName: 'Plan Dev'
+    jobs:
+      - job: plan
+        steps:
+          - checkout: self
+            persistCredentials: true
+          
+          - template: templates/terraform-plan.yml
+            parameters:
+              workingDir: 'envs/dev'
+              backendKey: 'dev.terraform.tfstate'
+              artifactName: 'tfplan-dev'
+              serviceConnection: '$(serviceConnection)'
+
+  - stage: ApplyDev
+    displayName: 'Apply Dev'
+    dependsOn: PlanDev
+    condition: succeeded()
+    jobs:
+      - deployment: apply
+        environment: 'dev'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  persistCredentials: true
+                
+                - template: templates/terraform-apply.yml
+                  parameters:
+                    workingDir: 'envs/dev'
+                    backendKey: 'dev.terraform.tfstate'
+                    artifactName: 'tfplan-dev'
+                    serviceConnection: '$(serviceConnection)'
+
+  - stage: PlanProd
+    displayName: 'Plan Prod'
+    dependsOn: ApplyDev
+    condition: succeeded()
+    jobs:
+      - job: plan
+        steps:
+          - checkout: self
+            persistCredentials: true                
+          
+          - template: templates/terraform-plan.yml
+            parameters:
+              workingDir: 'envs/prod'
+              backendKey: 'prod.terraform.tfstate'
+              artifactName: 'tfplan-prod'
+              serviceConnection: '$(serviceConnection)'
+
+  - stage: ApplyProd
+    displayName: 'Apply Prod'
+    dependsOn: PlanProd
+    condition: succeeded()
+    jobs:
+      - deployment: apply
+        environment: 'prod'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  persistCredentials: true          
+                - template: templates/terraform-apply.yml
+                  parameters:
+                    workingDir: 'envs/prod'
+                    backendKey: 'prod.terraform.tfstate'
+                    artifactName: 'tfplan-prod'
+                    serviceConnection: '$(serviceConnection)'
