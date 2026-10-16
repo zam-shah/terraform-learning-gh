@@ -14,7 +14,7 @@ terraform {
     container_name       = "tfstate-gh"
     key                  = "gh-dev.terraform.tfstate"
     use_oidc             = true
-    use_azureaed_auth    = true
+    use_azuread_auth    = true
 
   }
 }
