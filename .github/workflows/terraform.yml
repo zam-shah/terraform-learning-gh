@@ -7,6 +7,13 @@ on:
       - 'envs/gh-dev/**'
       - 'modules/**'
       - '.github/workflows/terraform.yml'
+    
+  pull_request:
+    branches: [main]
+    paths:
+      - 'envs/gh-dev/**'
+      - 'modules/**'
+      - '.github/workflows/terraform.yml'  
   workflow_dispatch:
 
 permissions:
@@ -44,6 +51,7 @@ jobs:
 
   apply:
     needs: plan
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: gh-dev
     defaults:
