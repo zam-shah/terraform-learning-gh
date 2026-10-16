@@ -7,4 +7,5 @@ tags = {
   environment = "gh-dev"
   owner       = "zam"
   managed_by  = "github-actions"
+  cost_centre = "learning"
 }
