@@ -50,7 +50,7 @@ jobs:
           pip install checkov
           checkov --version
       - name: Checkov blocking
-        run: checkov -d . --framework terraform --compact --check CKV_AZURE_3,CKV_AZURE_44,CKV_AZURE_59,CKV_AZURE_190,CKV2_AZURE_47,CKV2_AZURE_40    
+        run: checkov -d . --framework terraform --compact --external-checks-dir $GITHUB_WORKSPACE/policies --check CKV2_CUSTOM_1,CKV_AZURE_3,CKV_AZURE_44,CKV_AZURE_59,CKV_AZURE_190,CKV2_AZURE_47,CKV2_AZURE_40 
       - name: Checkov advisory
         run: checkov -d . --framework terraform --compact --soft-fail         
       - run: terraform plan -out=tfplan

@@ -1,0 +1,11 @@
+metadata:
+  id: "CKV2_CUSTOM_1"
+  name: "Ensure storage account enforces HTTPS-only traffic (azurerm 4.x attribute)"
+  category: "ENCRYPTION"
+definition:
+  cond_type: "attribute"
+  resource_types:
+    - "azurerm_storage_account"
+  attribute: "https_traffic_only_enabled"
+  operator: "equals"
+  value: true
