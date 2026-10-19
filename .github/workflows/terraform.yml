@@ -45,6 +45,12 @@ jobs:
         run: |
           tflint --init --config=$GITHUB_WORKSPACE/.tflint.hcl
           tflint --config=$GITHUB_WORKSPACE/.tflint.hcl
+      - name: Install Checkov
+        run: |
+          pip install checkov
+          checkov --version
+      - name: Checkov advisory
+        run: checkov -d . --framework terraform --compact --soft-fail         
       - run: terraform plan -out=tfplan
       - name: Encrypt plan
         env:
